@@ -1,6 +1,7 @@
 using System.Linq;
 using ICSharpCode.NRefactory.CSharp;
 using OmniSharp.Common;
+using OmniSharp.Razor;
 using OmniSharp.Solution;
 using OmniSharp.Parser;
 using OmniSharp.Configuration;
@@ -22,6 +23,18 @@ namespace OmniSharp.SyntaxErrors
             if (project.CompilerSettings != null) {
             	parser.CompilerSettings = project.CompilerSettings;
             }
+            var razorUtilities = new RazorUtilities();
+            CSharpConversionResult razorOutput = null;
+            if (razorUtilities.IsRazor(request))
+            {
+                razorOutput = razorUtilities.ConvertToCSharp(request.FileName, request.Buffer);
+                if (!razorOutput.Success)
+                {
+                    return new SyntaxErrorsResponse {Errors = razorOutput.Errors};
+                }
+                request.Buffer = razorOutput.Source;
+            }
+
             var syntaxTree = parser.Parse(request.Buffer, request.FileName);
 
             var filename = request.FileName.ApplyPathReplacementsForClient();
@@ -35,6 +48,22 @@ namespace OmniSharp.SyntaxErrors
                     EndLine = error.Region.EndLine,
                     FileName = filename
                 });
+
+            if (razorOutput != null)
+            {
+                errors = errors.Select(error => {
+                    var oldLocation = razorOutput.ConvertToOldLocation(error.Line, error.Column);
+                    var oldEndLocation = razorOutput.ConvertToOldLocation(error.EndLine, error.EndColumn);
+                    return new Error {
+                        Message = error.Message,
+                        Column = oldLocation != null ? oldLocation.Value.Column : error.Column,
+                        Line = oldLocation != null ? oldLocation.Value.Line : error.Line,
+                        EndColumn = oldEndLocation != null ? oldEndLocation.Value.Column : error.EndColumn,
+                        EndLine = oldEndLocation != null ? oldEndLocation.Value.Line : error.EndLine,
+                        FileName = error.FileName,
+                    };
+                });
+            }
 
             return new SyntaxErrorsResponse {Errors = errors};
         }

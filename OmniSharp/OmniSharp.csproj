@@ -83,9 +83,34 @@
     <Reference Include="Swagger.ObjectModel">
       <HintPath>..\packages\Swagger.ObjectModel.0.1.0-alpha3\lib\net40\Swagger.ObjectModel.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.Web.Infrastructure" />
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Web.Helpers, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <Private>True</Private>
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.2.0.20710.0\lib\net40\System.Web.Helpers.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.Mvc, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <Private>True</Private>
+      <HintPath>..\packages\Microsoft.AspNet.Mvc.4.0.30506.0\lib\net40\System.Web.Mvc.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.Razor, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <Private>True</Private>
+      <HintPath>..\packages\Microsoft.AspNet.Razor.2.0.20710.0\lib\net40\System.Web.Razor.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.WebPages, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <Private>True</Private>
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.2.0.20710.0\lib\net40\System.Web.WebPages.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.WebPages.Deployment, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <Private>True</Private>
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.2.0.20710.0\lib\net40\System.Web.WebPages.Deployment.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web.WebPages.Razor, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <Private>True</Private>
+      <HintPath>..\packages\Microsoft.AspNet.WebPages.2.0.20710.0\lib\net40\System.Web.WebPages.Razor.dll</HintPath>
+    </Reference>
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="monodoc">
@@ -210,6 +235,7 @@
     <Compile Include="FindUsages\FindUsagesModule.cs" />
     <Compile Include="FindUsages\FindUsagesRequest.cs" />
     <Compile Include="FindUsages\MemberCollector.cs" />
+    <Compile Include="Common\LineColumn.cs" />
     <Compile Include="Common\QuickFix.cs" />
     <Compile Include="CheckReadyStatus\CheckReadyStatusModule.cs" />
     <Compile Include="CodeActions\CodeActionProviders.cs" />
@@ -221,6 +247,8 @@
     <Compile Include="ProjectManipulation\RemoveFromProject\RemoveFromProjectRequest.cs" />
     <Compile Include="ProjectManipulation\RemoveFromProject\XDocumentExtensions.cs" />
     <Compile Include="Refactoring\OmniSharpScript.cs" />
+    <Compile Include="Razor\CSharpConversionResult.cs" />
+    <Compile Include="Razor\RazorUtilities.cs" />
     <Compile Include="Refactoring\OmniSharpRefactoringContext.cs" />
     <Compile Include="CodeActions\RunCodeActionModule.cs" />
     <Compile Include="CodeActions\RunCodeActionRequest.cs" />

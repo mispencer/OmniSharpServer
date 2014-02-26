@@ -211,7 +211,7 @@ namespace OmniSharp.Solution
 
         void AddCSharpFiles(Microsoft.Build.Evaluation.Project p)
         {
-            foreach (var item in p.GetItems("Compile"))
+            foreach (var item in p.GetItems("Compile").Union(p.GetItems("Content").Where(i => i.EvaluatedInclude.EndsWith(".cshtml"))))
             {
                 try
                 {

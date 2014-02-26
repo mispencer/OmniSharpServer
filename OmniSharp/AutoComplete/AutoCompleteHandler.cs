@@ -5,6 +5,7 @@ using ICSharpCode.NRefactory.CSharp;
 using ICSharpCode.NRefactory.CSharp.Completion;
 using ICSharpCode.NRefactory.Completion;
 using OmniSharp.Parser;
+using OmniSharp.Razor;
 using OmniSharp.Solution;
 using OmniSharp.Configuration;
 
@@ -28,6 +29,21 @@ namespace OmniSharp.AutoComplete
         public IEnumerable<CompletionData> CreateProvider(AutoCompleteRequest request)
         {
             request.Column = request.Column - request.WordToComplete.Length;
+
+            var razorUtilities = new RazorUtilities();
+            if (razorUtilities.IsRazor(request))
+            {
+                var output = razorUtilities.ConvertToCSharp(request.FileName, request.Buffer);
+                var newLocation = output.ConvertToNewLocation(request.Line, request.Column);
+                request.Line = newLocation.Value.Line;
+                request.Column = newLocation.Value.Column;
+                request.Buffer = output.Source;
+                //_logger.Debug("Buffer: "+request.Buffer);
+                //_logger.Debug("Line: "+request.Line);
+                //_logger.Debug("Column: "+request.Column);
+                //_logger.Debug("Around: [[[`"+source.Substring(start+wordStart-5, 5)+"`"+source.Substring(start+wordStart, 5)+"`]]]");
+            }
+
             var completionContext = new BufferContext(request, _parser);
 
             var partialWord = request.WordToComplete;
