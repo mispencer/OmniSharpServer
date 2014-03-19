@@ -23,6 +23,9 @@ namespace OmniSharp.SyntaxErrors
             if (project.CompilerSettings != null) {
             	parser.CompilerSettings = project.CompilerSettings;
             }
+
+            var filename = request.FileName.ApplyPathReplacementsForClient();
+
             var razorUtilities = new RazorUtilities();
             CSharpConversionResult razorOutput = null;
             if (razorUtilities.IsRazor(request))
@@ -30,14 +33,19 @@ namespace OmniSharp.SyntaxErrors
                 razorOutput = razorUtilities.ConvertToCSharp(request.FileName, request.Buffer);
                 if (!razorOutput.Success)
                 {
-                    return new SyntaxErrorsResponse {Errors = razorOutput.Errors};
+                    var razorErrors = razorOutput.Errors.Select(error => new Error
+                    {
+                        Message = error.Message.Replace("'", "''"),
+                        Column = error.Column +1,
+                        Line = error.Line + 1,
+                        FileName = filename
+                    });
+                    return new SyntaxErrorsResponse {Errors = razorErrors};
                 }
                 request.Buffer = razorOutput.Source;
             }
 
             var syntaxTree = parser.Parse(request.Buffer, request.FileName);
-
-            var filename = request.FileName.ApplyPathReplacementsForClient();
 
             var errors = syntaxTree.Errors.Select(error => new Error
                 {
