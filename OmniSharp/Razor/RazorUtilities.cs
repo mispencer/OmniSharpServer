@@ -8,6 +8,9 @@ using System.Web.Razor;
 using System.Web.Razor.Parser;
 using Microsoft.CSharp;
 using OmniSharp.Common;
+using System.Web.Configuration;
+using System.Web.WebPages.Razor;
+using System.Web.WebPages.Razor.Configuration;
 
 namespace OmniSharp.Razor
 {
@@ -20,13 +23,7 @@ namespace OmniSharp.Razor
 
         public CSharpConversionResult ConvertToCSharp(String fileName, String source)
         {
-            var razorHost = new MvcWebPageRazorHost(fileName, "/")
-            {
-                DefaultDebugCompilation = true,
-                DesignTimeMode = true,
-            };
-
-            var engine = new RazorTemplateEngine(razorHost);
+            var engine = new RazorTemplateEngine(GetRazorHost(fileName));
             var output = engine.GenerateCode(new StringReader(source), null, null, fileName);
             var result = new CSharpConversionResult
             {
@@ -58,6 +55,59 @@ namespace OmniSharp.Razor
                 ).ToList();
             }
             return result;
+        }
+
+        private static WebPageRazorHost GetRazorHost(string fileName)
+        {
+            RazorWebSectionGroup razorConfigSection;
+            try
+            {
+                var config = OpenConfigFile(fileName);
+                razorConfigSection = new RazorWebSectionGroup
+                {
+                    Host = (HostSection)config.GetSection(HostSection.SectionName),
+                    Pages = (RazorPagesSection)config.GetSection(RazorPagesSection.SectionName),
+                };
+            }
+            catch (Exception)
+            {
+                // Couldn't get the configuration
+                razorConfigSection = null;
+            }
+
+            WebPageRazorHost razorHost
+                = (razorConfigSection != null)
+                ? WebRazorHostFactory.CreateHostFromConfig(razorConfigSection, "/", fileName)
+                : WebRazorHostFactory.CreateDefaultHost("/", fileName)
+                ;
+            razorHost.DefaultDebugCompilation = true;
+            razorHost.DesignTimeMode = true;
+
+            return razorHost;
+        }
+
+        private static System.Configuration.Configuration OpenConfigFile(string path)
+        {
+            var configFile = FindConfigFile(path);
+            var vdm = new VirtualDirectoryMapping(configFile.DirectoryName, true, configFile.Name);
+            var wcfm = new WebConfigurationFileMap();
+            wcfm.VirtualDirectories.Add("/", vdm);
+            return WebConfigurationManager.OpenMappedWebConfiguration(wcfm, "/");
+        }
+
+        private static FileInfo FindConfigFile(string path)
+        {
+            var file = new FileInfo(path);
+            var dir = file.Directory;
+            while(dir != null)
+            {
+                foreach(var subfile in dir.EnumerateFiles("Web.config"))
+                {
+                    return subfile;
+                }
+                dir = dir.Parent;
+            }
+            throw new Exception("Could not find config file");
         }
     }
 }
