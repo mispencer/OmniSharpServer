@@ -11,6 +11,7 @@ using OmniSharp.Common;
 using OmniSharp.Configuration;
 using Error = OmniSharp.Common.Error;
 using OmniSharp.Solution;
+using OmniSharp.Razor;
 
 namespace OmniSharp.SemanticErrors
 {
@@ -28,6 +29,27 @@ namespace OmniSharp.SemanticErrors
         public SemanticErrorsResponse FindSemanticErrors(Request request)
         {
             var clientFilename = request.FileName.ApplyPathReplacementsForClient();
+
+            var razorUtilities = new RazorUtilities();
+            CSharpConversionResult razorOutput = null;
+            if (razorUtilities.IsRazor(request))
+            {
+                razorOutput = razorUtilities.ConvertToCSharp(request.FileName, request.Buffer);
+                if (!razorOutput.Success)
+                {
+                    var razorErrors = razorOutput.Errors.Select(error => new Error
+                    {
+                        Message = error.Message.Replace("'", "''"),
+                        Column = error.Column +1,
+                        Line = error.Line + 1,
+                        FileName = clientFilename
+                    });
+                    return new SemanticErrorsResponse {Errors = razorErrors};
+                }
+                request.Buffer = razorOutput.Source;
+            }
+
+
             var project = _solution.ProjectContainingFile(request.FileName);
             project.UpdateFile(request.FileName, request.Buffer);
             var solutionSnapshot = new DefaultSolutionSnapshot(_solution.Projects.Select(i => i.ProjectContent));
@@ -51,6 +73,22 @@ namespace OmniSharp.SemanticErrors
                 EndLine = i.EndLocation.Line,
                 EndColumn = i.EndLocation.Column
             });
+
+            if (razorOutput != null)
+            {
+                errors = errors.Select(error => {
+                    var oldLocation = razorOutput.ConvertToOldLocation(error.Line, error.Column);
+                    var oldEndLocation = razorOutput.ConvertToOldLocation(error.EndLine, error.EndColumn);
+                    return new Error {
+                        Message = error.Message,
+                        Column = oldLocation != null ? oldLocation.Value.Column : error.Column,
+                        Line = oldLocation != null ? oldLocation.Value.Line : error.Line,
+                        EndColumn = oldEndLocation != null ? oldEndLocation.Value.Column : error.EndColumn,
+                        EndLine = oldEndLocation != null ? oldEndLocation.Value.Line : error.EndLine,
+                        FileName = error.FileName,
+                    };
+                });
+            }
 
             return new SemanticErrorsResponse
             {
