@@ -1,10 +1,14 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using ICSharpCode.NRefactory;
 using ICSharpCode.NRefactory.CSharp.Refactoring;
 using OmniSharp.Common;
 using OmniSharp.Configuration;
 using OmniSharp.Parser;
 using OmniSharp.Refactoring;
+using OmniSharp.Razor;
 
 namespace OmniSharp.CodeActions
 {
@@ -43,9 +47,21 @@ namespace OmniSharp.CodeActions
             return new RunCodeActionsResponse {Text = context.Document.Text};
         }
 
-        private IEnumerable<CodeAction> GetContextualCodeActions(Request req)
+        private IEnumerable<CodeAction> GetContextualCodeActions(Request request)
         {
-            var refactoringContext = OmniSharpRefactoringContext.GetContext(_bufferParser, req);
+            var razorUtilities = new RazorUtilities();
+            CSharpConversionResult razorOutput = null;
+            if (razorUtilities.IsRazor(request))
+            {
+                razorOutput = razorUtilities.ConvertToCSharp(request.FileName, request.Buffer);
+                if (!razorOutput.Success)
+                {
+                    return new List<CodeAction>();
+                }
+                request.Buffer = razorOutput.Source;
+            }
+
+            var refactoringContext = OmniSharpRefactoringContext.GetContext(_bufferParser, request);
 
             var actions = new List<CodeAction>();
             var providers = new CodeActionProviders().GetProviders();
@@ -54,6 +70,25 @@ namespace OmniSharp.CodeActions
                 var providerActions = provider.GetActions(refactoringContext);
                 actions.AddRange(providerActions);
             }
+
+            if (razorOutput != null)
+            {
+                foreach(var action in actions.ToList())
+                {
+                    var oldStart = razorOutput.ConvertToOldLocation(action.Start.Line, action.Start.Column);
+                    var oldEnd = razorOutput.ConvertToOldLocation(action.End.Line, action.End.Column);
+                    if (oldStart == null || oldEnd == null)
+                    {
+                        actions.Remove(action);
+                    }
+                    else
+                    {
+                        action.GetType().GetProperty("Start", BindingFlags.NonPublic).SetValue(action, new TextLocation(oldStart.Value.Line, oldStart.Value.Column), null);
+                        action.GetType().GetProperty("End", BindingFlags.NonPublic).SetValue(action, new TextLocation(oldEnd.Value.Line, oldEnd.Value.Column), null);
+                    }
+                }
+            }
+
             return actions;
         }
     }

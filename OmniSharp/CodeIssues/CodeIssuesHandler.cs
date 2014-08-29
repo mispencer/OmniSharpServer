@@ -2,10 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Reflection;
+using ICSharpCode.NRefactory;
 using ICSharpCode.NRefactory.CSharp.Refactoring;
 using OmniSharp.Common;
 using OmniSharp.Configuration;
 using OmniSharp.Parser;
+using OmniSharp.Razor;
 using OmniSharp.Refactoring;
 
 namespace OmniSharp.CodeIssues
@@ -63,6 +66,18 @@ namespace OmniSharp.CodeIssues
 
         private IEnumerable<CodeIssue> GetContextualCodeActions(Request req)
         {
+            var razorUtilities = new RazorUtilities();
+            CSharpConversionResult razorOutput = null;
+            if (razorUtilities.IsRazor(req))
+            {
+                razorOutput = razorUtilities.ConvertToCSharp(req.FileName, req.Buffer);
+                if (!razorOutput.Success)
+                {
+                    return new List<CodeIssue>();
+                }
+                req.Buffer = razorOutput.Source;
+            }
+
             var refactoringContext = OmniSharpRefactoringContext.GetContext(_bufferParser, req);
             var actions = new List<CodeIssue>();
             var providers = new CodeIssueProviders().GetProviders();
@@ -78,6 +93,39 @@ namespace OmniSharp.CodeIssues
                 }
                 
             }
+
+            if (razorOutput != null)
+            {
+                foreach(var action in actions.ToList())
+                {
+                    var oldStart = razorOutput.ConvertToOldLocation(action.Start.Line, action.Start.Column);
+                    var oldEnd = razorOutput.ConvertToOldLocation(action.End.Line, action.End.Column);
+                    if (oldStart == null || oldEnd == null)
+                    {
+                        actions.Remove(action);
+                    }
+                    else
+                    {
+                        var startProp = action.GetType().GetProperty("Start", BindingFlags.Public|BindingFlags.Instance);
+                        if (startProp != null) {
+                            startProp.SetValue(action, new TextLocation(oldStart.Value.Line, oldStart.Value.Column), null);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Couldn't find start: "+action.GetType().FullName);
+                        }
+                        var endProp = action.GetType().GetProperty("End", BindingFlags.Public|BindingFlags.Instance);
+                        if (endProp != null) {
+                            endProp.SetValue(action, new TextLocation(oldEnd.Value.Line, oldEnd.Value.Column), null);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Couldn't find end: "+action.GetType().FullName);
+                        }
+                    }
+                }
+            }
+
             return actions;
         }
 
