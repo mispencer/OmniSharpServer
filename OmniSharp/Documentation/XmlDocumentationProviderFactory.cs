@@ -4,6 +4,7 @@ using ICSharpCode.NRefactory.Documentation;
 using ICSharpCode.NRefactory.TypeSystem;
 using MonoDevelop.Ide.TypeSystem;
 using OmniSharp.Solution;
+using OmniSharp;
 
 namespace OmniSharp.Documentation
 {
@@ -24,7 +25,14 @@ namespace OmniSharp.Documentation
             string fileName = null;
             IUnresolvedAssembly reference = project.References.OfType<IUnresolvedAssembly>().FirstOrDefault(i => i.AssemblyName.Equals(assemblyName));
             if (reference != null)
-                fileName = XmlDocumentationProvider.LookupLocalizedXmlDoc(reference.Location);
+            {
+                var location = reference.Location;
+                if (string.IsNullOrWhiteSpace(reference.Location))
+                {
+                    location = project.FindAssembly(assemblyName);
+                }
+                fileName = XmlDocumentationProvider.LookupLocalizedXmlDoc(location);
+            }
 
             if (fileName != null)
             {
