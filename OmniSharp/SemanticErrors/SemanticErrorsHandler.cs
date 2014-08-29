@@ -76,18 +76,23 @@ namespace OmniSharp.SemanticErrors
 
             if (razorOutput != null)
             {
-                errors = errors.Select(error => {
-                    var oldLocation = razorOutput.ConvertToOldLocation(error.Line, error.Column);
-                    var oldEndLocation = razorOutput.ConvertToOldLocation(error.EndLine, error.EndColumn);
-                    return new Error {
-                        Message = error.Message,
-                        Column = oldLocation != null ? oldLocation.Value.Column : error.Column,
-                        Line = oldLocation != null ? oldLocation.Value.Line : error.Line,
-                        EndColumn = oldEndLocation != null ? oldEndLocation.Value.Column : error.EndColumn,
-                        EndLine = oldEndLocation != null ? oldEndLocation.Value.Line : error.EndLine,
-                        FileName = error.FileName,
-                    };
-                });
+                errors = errors
+                    .Select(error => new { 
+                        oldLocation = razorOutput.ConvertToOldLocation(error.Line, error.Column),
+                        oldEndLocation = razorOutput.ConvertToOldLocation(error.EndLine, error.EndColumn),
+                        error
+                    })
+                    .Where(i => i.oldLocation != null)
+                    .Select(errorStruct =>
+                        new Error {
+                            Message = errorStruct.error.Message,
+                            Column = errorStruct.oldLocation.GetValueOrDefault().Column,
+                            Line = errorStruct.oldLocation.GetValueOrDefault().Line,
+                            EndColumn = errorStruct.oldEndLocation.GetValueOrDefault(errorStruct.oldLocation.GetValueOrDefault()).Column,
+                            EndLine = errorStruct.oldEndLocation.GetValueOrDefault(errorStruct.oldLocation.GetValueOrDefault()).Line,
+                            FileName = errorStruct.error.FileName,
+                        }
+                    );
             }
 
             return new SemanticErrorsResponse
