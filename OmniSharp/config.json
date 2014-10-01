@@ -27,7 +27,11 @@
 
   "IgnoredCodeIssues": [
     "^Keyword 'private' is redundant. This is the default modifier.$",
-    ".* should not separate words with an underscore.*"
+    "^'this.' is redundant and can be removed safely.$",
+    ".* should not separate words with an underscore.*",
+    "^Use of Linq method when there's a better alternative$",
+    "^Redundant 'else' keyword$",
+    "^Parameter can be IComparable$"
   ],
 
   "TestCommands": {
