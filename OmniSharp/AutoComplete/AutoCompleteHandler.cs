@@ -35,6 +35,9 @@ namespace OmniSharp.AutoComplete
             {
                 var output = razorUtilities.ConvertToCSharp(request.FileName, request.Buffer);
                 var newLocation = output.ConvertToNewLocation(request.Line, request.Column);
+                if (newLocation == null) {
+                    return Enumerable.Empty<CompletionData>();
+                }
                 request.Line = newLocation.Value.Line;
                 request.Column = newLocation.Value.Column;
                 request.Buffer = output.Source;

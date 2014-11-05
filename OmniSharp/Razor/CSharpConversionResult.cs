@@ -17,6 +17,9 @@ namespace OmniSharp.Razor
 
         public LineColumn? ConvertToNewLocation(int line, int column)
         {
+            if (this.Mappings == null) {
+                return null;
+            }
             var inputIndex = this.LineColumnToIndex(this.OriginalSource, line, column);
             foreach(var attemptedOffset in new[] { 0, 1, /*-1,*/ 2, /*-2,*/ 3, /*-3,*/ 4, /*-4,*/ 5, /*-5*/ })
             {

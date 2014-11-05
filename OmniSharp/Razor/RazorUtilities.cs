@@ -30,7 +30,7 @@ namespace OmniSharp.Razor
                 Success = output.Success,
                 OriginalSource = source,
             };
-            if (output.Success)
+            if (output.Success && !output.ParserErrors.Any() && output.DesignTimeLineMappings != null)
             {
                 var codeProvider = new CSharpCodeProvider();
                 using (var codeStream = new MemoryStream())
