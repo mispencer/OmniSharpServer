@@ -39,7 +39,7 @@ namespace OmniSharp.Razor
                     {
                         codeProvider.GenerateCodeFromCompileUnit(output.GeneratedCode, writer, new CodeGeneratorOptions());
                     }
-                    result.Source = Encoding.UTF8.GetString(codeStream.ToArray());
+                    result.Source = Encoding.UTF8.GetString(codeStream.ToArray()).Replace("@__RazorDesignTimeHelpers__()", " __RazorDesignTimeHelpers__()");
                     result.Mappings = output.DesignTimeLineMappings;
                 }
             }
