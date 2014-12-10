@@ -28,9 +28,10 @@ namespace OmniSharp.SyntaxErrors
 
             var razorUtilities = new RazorUtilities();
             CSharpConversionResult razorOutput = null;
+            var buffer = request.Buffer;
             if (razorUtilities.IsRazor(request))
             {
-                razorOutput = razorUtilities.ConvertToCSharp(request.FileName, request.Buffer);
+                razorOutput = razorUtilities.ConvertToCSharp(request.FileName, buffer);
                 if (!razorOutput.Success)
                 {
                     var razorErrors = razorOutput.Errors.Select(error => new Error
@@ -42,10 +43,10 @@ namespace OmniSharp.SyntaxErrors
                     });
                     return new SyntaxErrorsResponse {Errors = razorErrors};
                 }
-                request.Buffer = razorOutput.Source;
+                buffer = razorOutput.Source;
             }
 
-            var syntaxTree = parser.Parse(request.Buffer, request.FileName);
+            var syntaxTree = parser.Parse(buffer, request.FileName);
 
             var errors = syntaxTree.Errors.Select(error => new Error
                 {

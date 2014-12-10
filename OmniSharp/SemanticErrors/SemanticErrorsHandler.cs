@@ -32,9 +32,10 @@ namespace OmniSharp.SemanticErrors
 
             var razorUtilities = new RazorUtilities();
             CSharpConversionResult razorOutput = null;
+            var buffer = request.Buffer;
             if (razorUtilities.IsRazor(request))
             {
-                razorOutput = razorUtilities.ConvertToCSharp(request.FileName, request.Buffer);
+                razorOutput = razorUtilities.ConvertToCSharp(request.FileName, buffer);
                 if (!razorOutput.Success)
                 {
                     var razorErrors = razorOutput.Errors.Select(error => new Error
@@ -46,18 +47,18 @@ namespace OmniSharp.SemanticErrors
                     });
                     return new SemanticErrorsResponse {Errors = razorErrors};
                 }
-                request.Buffer = razorOutput.Source;
+                buffer = razorOutput.Source;
             }
 
 
             var project = _solution.ProjectContainingFile(request.FileName);
-            project.UpdateFile(request.FileName, request.Buffer);
+            project.UpdateFile(request.FileName, buffer);
             var solutionSnapshot = new DefaultSolutionSnapshot(_solution.Projects.Select(i => i.ProjectContent));
             SyntaxTree syntaxTree;
             if(project.CompilerSettings!=null){
-            	syntaxTree = new CSharpParser(project.CompilerSettings).Parse(request.Buffer, request.FileName);
+            	syntaxTree = new CSharpParser(project.CompilerSettings).Parse(buffer, request.FileName);
             }else{
-            	syntaxTree = new CSharpParser().Parse(request.Buffer, request.FileName);
+            	syntaxTree = new CSharpParser().Parse(buffer, request.FileName);
             }
             var resolver = new CSharpAstResolver(solutionSnapshot.GetCompilation(project.ProjectContent), syntaxTree);
             var navigator = new SemanticErrorsNavigator();
