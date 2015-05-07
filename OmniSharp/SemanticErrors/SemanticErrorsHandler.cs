@@ -30,12 +30,14 @@ namespace OmniSharp.SemanticErrors
         {
             var clientFilename = request.FileName.ApplyPathReplacementsForClient();
 
+            var project = _solution.ProjectContainingFile(request.FileName);
+
             var razorUtilities = new RazorUtilities();
             CSharpConversionResult razorOutput = null;
             var buffer = request.Buffer;
             if (razorUtilities.IsRazor(request))
             {
-                razorOutput = razorUtilities.ConvertToCSharp(request.FileName, buffer);
+                razorOutput = razorUtilities.ConvertToCSharp(project, request.FileName, buffer);
                 if (!razorOutput.Success)
                 {
                     var razorErrors = razorOutput.Errors.Select(error => new Error
@@ -50,8 +52,6 @@ namespace OmniSharp.SemanticErrors
                 buffer = razorOutput.Source;
             }
 
-
-            var project = _solution.ProjectContainingFile(request.FileName);
             project.UpdateFile(request.FileName, buffer);
             var solutionSnapshot = new DefaultSolutionSnapshot(_solution.Projects.Select(i => i.ProjectContent));
             SyntaxTree syntaxTree;

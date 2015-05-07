@@ -11,6 +11,9 @@ using OmniSharp.Common;
 using System.Web.Configuration;
 using System.Web.WebPages.Razor;
 using System.Web.WebPages.Razor.Configuration;
+using OmniSharp.Solution;
+using System.Reflection;
+using ICSharpCode.NRefactory.TypeSystem.Implementation;
 
 namespace OmniSharp.Razor
 {
@@ -21,9 +24,9 @@ namespace OmniSharp.Razor
             return request.FileName.EndsWith(".cshtml");
         }
 
-        public CSharpConversionResult ConvertToCSharp(String fileName, String source)
+        public CSharpConversionResult ConvertToCSharp(IProject project, String fileName, String source)
         {
-            var engine = new RazorTemplateEngine(GetRazorHost(fileName));
+            var engine = new RazorTemplateEngine(GetRazorHost(project, fileName));
             var output = engine.GenerateCode(new StringReader(source), null, null, fileName);
             var result = new CSharpConversionResult
             {
@@ -57,7 +60,7 @@ namespace OmniSharp.Razor
             return result;
         }
 
-        private static WebPageRazorHost GetRazorHost(string fileName)
+        private static WebPageRazorHost GetRazorHost(IProject project, string fileName)
         {
             RazorWebSectionGroup razorConfigSection;
             try
@@ -74,6 +77,13 @@ namespace OmniSharp.Razor
                 // Couldn't get the configuration
                 razorConfigSection = null;
             }
+
+            var typeParts = razorConfigSection.Host.FactoryType.Split(',').Select(i => i.Trim());
+            var factoryTypeName = typeParts.First();
+            var hostAssemblyName = typeParts.Skip(1).First();
+            var hostAssembly = project.References.OfType<DefaultUnresolvedAssembly>().Single(i => i.AssemblyName == hostAssemblyName);
+            var result = Assembly.LoadFrom(hostAssembly.Location);
+            razorConfigSection.Host.FactoryType = String.Join(", ", factoryTypeName, result.FullName);
 
             WebPageRazorHost razorHost
                 = (razorConfigSection != null)

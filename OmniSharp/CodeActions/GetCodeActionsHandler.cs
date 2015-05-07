@@ -9,16 +9,19 @@ using OmniSharp.Configuration;
 using OmniSharp.Parser;
 using OmniSharp.Refactoring;
 using OmniSharp.Razor;
+using OmniSharp.Solution;
 
 namespace OmniSharp.CodeActions
 {
     public class GetCodeActionsHandler
     {
+        private readonly ISolution _solution;
         readonly BufferParser _bufferParser;
         readonly OmniSharpConfiguration _config;
 
-        public GetCodeActionsHandler(BufferParser bufferParser, OmniSharpConfiguration config)
+        public GetCodeActionsHandler(ISolution solution, BufferParser bufferParser, OmniSharpConfiguration config)
         {
+            _solution = solution;
             _bufferParser = bufferParser;
             _config = config;
         }
@@ -49,11 +52,13 @@ namespace OmniSharp.CodeActions
 
         private IEnumerable<CodeAction> GetContextualCodeActions(Request request)
         {
+            var project = _solution.ProjectContainingFile(request.FileName);
+
             var razorUtilities = new RazorUtilities();
             CSharpConversionResult razorOutput = null;
             if (razorUtilities.IsRazor(request))
             {
-                razorOutput = razorUtilities.ConvertToCSharp(request.FileName, request.Buffer);
+                razorOutput = razorUtilities.ConvertToCSharp(project, request.FileName, request.Buffer);
                 if (!razorOutput.Success)
                 {
                     return new List<CodeAction>();

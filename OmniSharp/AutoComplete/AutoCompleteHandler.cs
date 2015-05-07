@@ -30,10 +30,12 @@ namespace OmniSharp.AutoComplete
         {
             request.Column = request.Column - request.WordToComplete.Length;
 
+            var project = _solution.ProjectContainingFile(request.FileName);
+
             var razorUtilities = new RazorUtilities();
             if (razorUtilities.IsRazor(request))
             {
-                var output = razorUtilities.ConvertToCSharp(request.FileName, request.Buffer);
+                var output = razorUtilities.ConvertToCSharp(project, request.FileName, request.Buffer);
                 var newLocation = output.ConvertToNewLocation(request.Line, request.Column);
                 if (newLocation == null) {
                     return Enumerable.Empty<CompletionData>();
@@ -51,7 +53,6 @@ namespace OmniSharp.AutoComplete
 
             var partialWord = request.WordToComplete;
 
-            var project = _solution.ProjectContainingFile(request.FileName);
         
             var contextProvider = new DefaultCompletionContextProvider(completionContext.Document, completionContext.ParsedContent.UnresolvedFile);
 
