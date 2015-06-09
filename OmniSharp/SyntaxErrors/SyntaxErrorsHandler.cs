@@ -32,8 +32,6 @@ namespace OmniSharp.SyntaxErrors
             if (razorUtilities.IsRazor(request))
             {
                 razorOutput = razorUtilities.ConvertToCSharp(project, request.FileName, buffer);
-                //System.Console.WriteLine(" Pre:```````````````\n"+buffer+"\n''''''''''''\n");
-                //System.Console.WriteLine("Post:```````````````\n"+razorOutput.Source+"\n''''''''''''\n");
                 if (!razorOutput.Success)
                 {
                     var razorErrors = razorOutput.Errors.Select(error => new Error

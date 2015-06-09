@@ -16,11 +16,6 @@ namespace OmniSharp.AutoComplete
                 _wordToComplete = value;
             }
         }
-        /// <summary>
-        ///   Specifies whether to force semantic completion (i.e. CTRL-space in
-        ///   NRefactor).
-        /// </summary>
-        public bool? ForceSemanticCompletion { get; set; }
 
         /// <summary>
         ///   Specifies whether to force semantic completion (i.e. CTRL-space in
