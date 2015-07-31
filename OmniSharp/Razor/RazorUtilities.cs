@@ -1,11 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.CodeDom.Compiler;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Web.Mvc.Razor;
 using System.Web.Razor;
-using System.Web.Razor.Parser;
 using Microsoft.CSharp;
 using OmniSharp.Common;
 using System.Web.Configuration;
@@ -13,6 +12,8 @@ using System.Web.WebPages.Razor;
 using System.Web.WebPages.Razor.Configuration;
 using OmniSharp.Solution;
 using System.Reflection;
+using System.Web.Razor.Generator;
+using System.Web.Razor.Parser.SyntaxTree;
 using ICSharpCode.NRefactory.TypeSystem.Implementation;
 
 namespace OmniSharp.Razor
@@ -26,14 +27,28 @@ namespace OmniSharp.Razor
 
         public CSharpConversionResult ConvertToCSharp(IProject project, String fileName, String source)
         {
-            var engine = new RazorTemplateEngine(GetRazorHost(project, fileName));
+            var engine = GetRazorHost(project, fileName);
             var output = engine.GenerateCode(new StringReader(source), null, null, fileName);
+            var mappings = new Dictionary<int,GeneratedCodeMapping>();
+            var parserErrors = new List<RazorError>();
+            foreach(var error in output.ParserErrors) {
+                parserErrors.Add(new RazorError(error.Message, error.Location.AbsoluteIndex, error.Location.LineIndex, error.Location.CharacterIndex, error.Length));
+            }
+            foreach(var item in output.DesignTimeLineMappings) {
+                var i = item.Value;
+                if (i.StartOffset == null) {
+                    mappings[item.Key] = new GeneratedCodeMapping(i.StartLine, i.StartColumn, i.StartGeneratedColumn, i.CodeLength);
+                } else {
+                    mappings[item.Key] = new GeneratedCodeMapping(i.StartOffset, i.StartLine, i.StartColumn, i.StartGeneratedColumn, i.CodeLength);
+                }
+            }
+            
             var result = new CSharpConversionResult
             {
                 Success = output.Success,
                 OriginalSource = source,
             };
-            if (output.Success && !output.ParserErrors.Any() && output.DesignTimeLineMappings != null)
+            if (output.Success && !parserErrors.Any() && mappings != null)
             {
                 var codeProvider = new CSharpCodeProvider();
                 using (var codeStream = new MemoryStream())
@@ -43,12 +58,13 @@ namespace OmniSharp.Razor
                         codeProvider.GenerateCodeFromCompileUnit(output.GeneratedCode, writer, new CodeGeneratorOptions());
                     }
                     result.Source = Encoding.UTF8.GetString(codeStream.ToArray()).Replace("@__RazorDesignTimeHelpers__()", " __RazorDesignTimeHelpers__()");
-                    result.Mappings = output.DesignTimeLineMappings;
+                    result.Mappings = mappings;
                 }
+                //Console.WriteLine("Source: "+result.Source);
             }
             else
             {
-                result.Errors = output.ParserErrors.Select(error => new Error
+                result.Errors = parserErrors.Select(error => new Error
                     {
                         Message = error.Message.Replace("'", "''"),
                         Column = error.Location.CharacterIndex,
@@ -60,40 +76,77 @@ namespace OmniSharp.Razor
             return result;
         }
 
-        private static WebPageRazorHost GetRazorHost(IProject project, string fileName)
+        private static dynamic GetRazorHost(IProject project, string fileName)
         {
             RazorWebSectionGroup razorConfigSection;
+            var config = OpenConfigFile(fileName);
             try
             {
-                var config = OpenConfigFile(fileName);
+                var host = config.GetSection(HostSection.SectionName);
+                var pages = config.GetSection(RazorPagesSection.SectionName);
+                if (host is HostSection && pages is RazorPagesSection) {
+                    // Okay
+                } else {
+                    host = new HostSection {
+                        FactoryType = host.GetType().GetProperty("FactoryType").GetValue(host) as String,
+                    };
+                    pages = new RazorPagesSection {
+                        Namespaces = pages.GetType().GetProperty("Namespaces").GetValue(pages) as NamespaceCollection,
+                        PageBaseType = pages.GetType().GetProperty("PageBaseType").GetValue(pages) as String,
+                    };
+                }
                 razorConfigSection = new RazorWebSectionGroup
                 {
-                    Host = (HostSection)config.GetSection(HostSection.SectionName),
-                    Pages = (RazorPagesSection)config.GetSection(RazorPagesSection.SectionName),
+                    Host = (HostSection)host,
+                    Pages = (RazorPagesSection)pages,
                 };
             }
             catch (Exception)
             {
                 // Couldn't get the configuration
                 razorConfigSection = null;
+                throw;
             }
 
-            var typeParts = razorConfigSection.Host.FactoryType.Split(',').Select(i => i.Trim());
-            var factoryTypeName = typeParts.First();
-            var hostAssemblyName = typeParts.Skip(1).First();
-            var hostAssembly = project.References.OfType<DefaultUnresolvedAssembly>().Single(i => i.AssemblyName == hostAssemblyName);
-            var result = Assembly.LoadFrom(hostAssembly.Location);
-            razorConfigSection.Host.FactoryType = String.Join(", ", factoryTypeName, result.FullName);
+            dynamic razorHost;
+            if (razorConfigSection != null && !String.IsNullOrWhiteSpace(razorConfigSection.Host.FactoryType)) {
+                var typeParts = razorConfigSection.Host.FactoryType.Split(',').Select(i => i.Trim());
+                var factoryTypeName = typeParts.First();
+                var hostAssemblyName = typeParts.Skip(1).First();
+                var hostAssembly = project.References.OfType<DefaultUnresolvedAssembly>().Single(i => i.AssemblyName == hostAssemblyName);
+                var result = Assembly.LoadFrom(hostAssembly.Location);
+                razorConfigSection.Host.FactoryType = String.Join(", ", factoryTypeName, result.FullName);
+                Assembly.LoadFrom(hostAssembly.Location);
 
-            WebPageRazorHost razorHost
+                var razorAssemblyLocation = project.References.OfType<DefaultUnresolvedAssembly>().Single(i => i.AssemblyName == "System.Web.WebPages.Razor");
+                var razorAssembly = Assembly.LoadFrom(razorAssemblyLocation.Location);
+                var factoryType = razorAssembly.GetType("System.Web.WebPages.Razor.WebRazorHostFactory");
+                dynamic configSection = razorAssembly.CreateInstance("System.Web.WebPages.Razor.Configuration.RazorWebSectionGroup");
+                configSection.Host = (dynamic)config.GetSection(HostSection.SectionName);
+                configSection.Pages = (dynamic)config.GetSection(RazorPagesSection.SectionName);
+                var method = factoryType.GetMethod("CreateHostFromConfig", BindingFlags.Public|BindingFlags.Static, null, new[] { (Type)configSection.GetType(), typeof(String), typeof(String) }, null);  
+                razorHost = method.Invoke(null, new Object[] { configSection, "/", fileName });
+
+                razorHost.DefaultDebugCompilation = true;
+                razorHost.DesignTimeMode = true;
+
+                var razorEngineAssemblyLocation = project.References.OfType<DefaultUnresolvedAssembly>().Single(i => i.AssemblyName == "System.Web.Razor");
+                var razorEngineAssembly = Assembly.LoadFrom(razorEngineAssemblyLocation.Location);
+                var engineType = razorEngineAssembly.GetType("System.Web.Razor.RazorTemplateEngine");
+                if (engineType == null) { throw new Exception("A"); }
+                var constructor = engineType.GetConstructor(new Type[] { razorHost.GetType() });
+                if (constructor == null) { throw new Exception("C"); }
+                return constructor.Invoke(new object[] { razorHost });
+            } else {
+                razorHost 
                 = (razorConfigSection != null)
                 ? WebRazorHostFactory.CreateHostFromConfig(razorConfigSection, "/", fileName)
                 : WebRazorHostFactory.CreateDefaultHost("/", fileName)
                 ;
-            razorHost.DefaultDebugCompilation = true;
-            razorHost.DesignTimeMode = true;
-
-            return razorHost;
+                razorHost.DefaultDebugCompilation = true;
+                razorHost.DesignTimeMode = true;
+                return new RazorTemplateEngine(GetRazorHost(project, fileName));
+            }
         }
 
         private static System.Configuration.Configuration OpenConfigFile(string path)
