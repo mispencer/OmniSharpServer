@@ -31,7 +31,10 @@ namespace OmniSharp.Documentation
                 {
                     location = project.FindAssembly(assemblyName);
                 }
-                fileName = XmlDocumentationProvider.LookupLocalizedXmlDoc(location);
+                if (!string.IsNullOrWhiteSpace(reference.Location))
+                {
+                    fileName = XmlDocumentationProvider.LookupLocalizedXmlDoc(location);
+                }
             }
 
             if (fileName != null)
