@@ -12,6 +12,7 @@ using System.Web.WebPages.Razor;
 using System.Web.WebPages.Razor.Configuration;
 using OmniSharp.Solution;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Web.Razor.Generator;
 using System.Web.Razor.Parser.SyntaxTree;
 using ICSharpCode.NRefactory.TypeSystem.Implementation;
@@ -22,13 +23,20 @@ namespace OmniSharp.Razor
     {
         public bool IsRazor(Request request)
         {
-            return request.FileName.EndsWith(".cshtml");
+            return this.IsRazor(request.FileName);
+        }
+
+        public bool IsRazor(String filename)
+        {
+            return filename.EndsWith(".cshtml");
         }
 
         public CSharpConversionResult ConvertToCSharp(IProject project, String fileName, String source)
         {
             var engine = GetRazorHost(project, fileName);
-            var output = engine.GenerateCode(new StringReader(source), null, null, fileName);
+            var projectDir = Regex.Replace(project.FileName, "/[^/]*$", "");
+            var className = Regex.Replace(projectDir.GetRelativePath(fileName).Replace(".cshtml", ""), "[^a-zA-Z]", "_");
+            var output = engine.GenerateCode(new StringReader(source), className, null, fileName);
             var mappings = new Dictionary<int,GeneratedCodeMapping>();
             var parserErrors = new List<RazorError>();
             foreach(var error in output.ParserErrors) {
