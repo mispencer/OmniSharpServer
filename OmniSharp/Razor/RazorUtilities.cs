@@ -110,7 +110,7 @@ namespace OmniSharp.Razor
 
             dynamic razorHost;
             if (razorConfigSection != null && !String.IsNullOrWhiteSpace(razorConfigSection.Host.FactoryType)) {
-                var typeParts = razorConfigSection.Host.FactoryType.Split(',').Select(i => i.Trim());
+                var typeParts = razorConfigSection.Host.FactoryType.Split(',').Select(i => i.Trim()).ToList();
                 var factoryTypeName = typeParts.First();
                 var hostAssemblyName = typeParts.Skip(1).First();
                 var hostAssemblyReference = project.References.OfType<DefaultUnresolvedAssembly>().Single(i => i.AssemblyName == hostAssemblyName);
@@ -136,6 +136,8 @@ namespace OmniSharp.Razor
                     method = factoryType.GetMethod("CreateHost", BindingFlags.Public|BindingFlags.Instance, null, new[] { typeof(String), typeof(String) }, null);
                     var razorFactory = hostAssembly.CreateInstance(factoryTypeName);
                     razorHost = method.Invoke(razorFactory, new Object[] { "/", fileName+"" });
+                    var applyMethod = factoryType.BaseType.GetMethod("ApplyConfigurationToHost", BindingFlags.Public|BindingFlags.Static, null, new[] { (Type)pagesSection.GetType(), (Type)razorHost.GetType() }, null);
+                    applyMethod.Invoke(null, new Object[] { pagesSection, razorHost });
                 } else {
                     razorHost = method.Invoke(null, new Object[] { configSection, "/", fileName });
                 }
